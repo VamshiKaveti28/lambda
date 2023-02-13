@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  daily-news-java
+
+  Sample SAM Template for daily-news-java
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+
+Resources:
+  DailyNewsFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: DailyNewsFunction
+      Handler: dailynews.App::handleRequest
+      Runtime: java11
+      MemorySize: 512
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          PARAM1: VALUE
+      Events:
+        DailyNews:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /dailynews
+            Method: get
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  DailyNewsApi:
+    Description: "API Gateway endpoint URL for Prod stage for Daily News function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/dailynews/"
+  DailyNewsFunction:
+    Description: "Daily News Lambda Function ARN"
+    Value: !GetAtt DailyNewsFunction.Arn
+  DailyNewsFunctionIamRole:
+    Description: "Implicit IAM Role created for Daily News function"
+    Value: !GetAtt DailyNewsFunctionRole.Arn

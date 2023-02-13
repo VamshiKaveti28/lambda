@@ -1,0 +1,158 @@
+@Library('swift-libs@4.0.0') _
+import lib.Slack
+import lib.JenkinsUtilities
+
+//Create object
+def slack = new Slack(this)
+def utils = new JenkinsUtilities(this) 
+
+node(){
+    if (( JENKINS_ENV.toLowerCase() == "sandbox") || ( JENKINS_ENV.toLowerCase() == "dev" )) {
+        utils.printSuccess("You are in ${JENKINS_ENV} environment")  
+        env.CI = 'true'
+    }
+    else {
+        env.CI = 'false'
+            utils.printSuccess("You are in ${JENKINS_ENV} environment") 
+    }
+
+    // Docker container used as Jenkins agent
+    env.PIPELINE_AGENT_DOCKER_IMAGE = "public.ecr.aws/sam/build-java11"
+    // Docker container arguments when docker runs as an Jenkins agent
+    env.DOCKER_ARGS = '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
+}
+
+pipeline
+{
+    agent {
+        docker {
+            image "${PIPELINE_AGENT_DOCKER_IMAGE}"
+            args "${DOCKER_ARGS}"
+        }
+    }    // Define environment variables which can be used in the pipeline at any stage
+
+    environment {
+      //define environment variables
+      // SAM Application Code
+      BUILD_FOLDER = "src-java"
+      // Slack Channel to send the Alerts
+      SLACK_CHANNEL = "swift-pipeline-notification"
+      // Unit Test groovy file
+      GROOVY_FILE = "java-unittest.groovy"
+    }
+
+    // Stages begin here configured each stage for specific task
+    stages {
+    // Setup env variables
+        stage('SetupEnv'){
+        steps {
+
+                script {
+                    timestamps {                                      
+                        ansiColor {
+                        utils.printBold("Setup Environment")
+                        buildServices.setupEnv()
+                        env.CI_STATUS = 'SUCCESS'
+                        env.SAM_OPS = " Java Lambda CI/CD"
+                        }
+                    }
+                }
+        }
+        }   
+
+        // This stage performs unitTest 
+        // Sam build also performs unit test validation but the results are stored in short lived folders 
+        // which immediately lost after the build hence explicitly done here to show the results on the Jenkins
+        stage("Perform unit test"){
+            when {
+                allOf {
+                    environment name: 'CI', value: 'true'
+                    // environment name: 'UNIT_TEST_ENABLED', value: 'true'
+                }
+            }
+            steps{
+                script {
+                    timestamps {                                      
+                        ansiColor {
+                            utils.printBold("Perform Unit test")
+                            def loadtest = load "${GROOVY_FILE}"
+                            loadtest.unitTest()
+                        }
+                    }
+                }
+            }
+        }
+
+        // This stage build the sam app code using config from template.yaml
+        stage("sam build"){
+            steps{
+                script {
+                    timestamps {                                      
+                        ansiColor {
+                            utils.printBold("sam build and package")
+                            buildServices.samBuild()
+                        }
+                    }
+                }
+            }
+        }
+
+        // This stage deploy the app to AWS Cloud using sam by cloudformation
+        // artifacts are stored in S3 bucket provided from samconfig.toml
+        stage("sam deploy"){
+            steps{
+                script {
+                    timestamps {                                      
+                        ansiColor {
+                            utils.printBold("sam deploy")
+                            buildServices.samDeploy()
+                        }
+                    }
+                }
+            }
+        }                       
+
+        //This stage will send notification on slack channel once the CI pipeline has been successfully completed
+        stage ('Slack Notification about sam app Build') {
+            steps {
+                script {
+                    timestamps {                                      
+                        ansiColor {
+                        utils.printSuccess("App build has been done")
+                        msg = "$SAM_OPS - App CI/CD Pipeline has been successfully completed - Job "
+                        String status = currentBuild.result ?: 'SUCCESS'
+                        utils.printBold("${status}")
+                        slack.slackNotification(SLACK_CHANNEL,msg,status)
+                        }
+                    }
+                }   
+                
+            }
+        }   
+            
+    } 
+
+    //This stage is used for post cleanup
+    post {
+         failure {
+           script {
+                    timestamps {                                      
+                        ansiColor {
+                            utils.printBold("${CI_STATUS}")
+                            if("${CI_STATUS}" == 'FAILURE' || "${CI_STATUS}" == 'UNSTABLE' ) {
+                                utils.printError("$SAM_OPS -Swift Sam -Java Lambda CI/CD failed  ")
+                               // msg = "Swift Sam Java Lambda CI/CD Pipeline has failed - Job "
+                                status = "$currentBuild.result"
+                                slack.slackNotification(SLACK_CHANNEL,status_msg,status)
+                            }
+                        }
+                    }
+           }
+         }
+    // Clean after build
+    always {
+        cleanWs()
+        }
+    } 
+
+}

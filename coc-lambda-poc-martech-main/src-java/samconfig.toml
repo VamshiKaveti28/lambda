@@ -1,0 +1,44 @@
+pversion = 0.1
+[sandbox]
+[sandbox.deploy]
+[sandbox.deploy.parameters]
+stack_name = "sam-app-sandbox"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-bedo4ajjrzjk"
+s3_prefix = "sam-app-sandbox"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []
+
+[dev]
+[dev.deploy]
+[dev.deploy.parameters]
+stack_name = "sam-app-dev"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-bedo4ajjrzjk"
+s3_prefix = "sam-app-dev"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []
+
+[pat]
+[pat.deploy]
+[pat.deploy.parameters]
+stack_name = "sam-app-pat"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-bedo4ajjrzjk"
+s3_prefix = "sam-app-pat"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []
+
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "sam-app-prod"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-bedo4ajjrzjk"
+s3_prefix = "sam-app-prod"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []
